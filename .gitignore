@@ -1,0 +1,9 @@
+/.vscode/
+
+/build/
+
+sdkconfig
+
+.DS_Store
+
+config.txt
