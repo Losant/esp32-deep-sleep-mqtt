@@ -1,28 +1,11 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <time.h>
-#include <sys/time.h>
-#include "sdkconfig.h"
-#include "soc/soc_caps.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "esp_sleep.h"
 #include "esp_log.h"
-#include "driver/adc.h"
-#include "driver/rtc_io.h"
-#include "soc/rtc.h"
 #include "freertos/event_groups.h"
-#include "esp_system.h"
-#include "esp_spi_flash.h"
 #include "esp_wifi.h"
-#include "esp_event.h"
 #include "esp_adc_cal.h"
 #include "soc/adc_channel.h"
-#include "driver/gpio.h"
 #include "nvs_flash.h"
-#include "lwip/err.h"
-#include "lwip/sys.h"
 #include "mqtt_client.h"
 #include "cJSON.h"
 
@@ -60,11 +43,19 @@ static esp_adc_cal_characteristics_t *adc_chars;
 #define WIFI_FAIL_BIT BIT1
 
 #define MQTT_CONNECTED_BIT BIT0
-#define MQTT_FAIL_BIT BIT0
+#define MQTT_FAIL_BIT BIT1
 
 
 static int s_retry_num = 0;
 
+/**
+ * @brief Event handler registered to receive MQTT events
+ *
+ *  This function is called by the MQTT client event loop.
+ * 
+ * @param event The data for the event
+ * @return esp_err_t 
+ */
 static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 {
     switch (event->event_id)
@@ -86,10 +77,19 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
 {
-    ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
+    ESP_LOGI(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
     mqtt_event_handler_cb(event_data);
 }
 
+/**
+ * @brief MQTT connection handler.
+ * Uses `mqtt_cfg` as MQTT connection configuration.
+ * Passes data to the MQTT Event handler `mqtt_event_handler` and sets a bit 
+ * if connection is successful.
+ *
+ * 
+ * @return esp_mqtt_client_handle_t 
+ */
 static esp_mqtt_client_handle_t mqtt_app_start(void)
 {
     s_mqtt_event_group = xEventGroupCreate();
@@ -120,6 +120,16 @@ static esp_mqtt_client_handle_t mqtt_app_start(void)
     return NULL;
 }
 
+/**
+ * @brief WiFi & IP event handler. 
+ * Handles WiFi reconnect logic based on EXAMPLE_ESP_MAXIMUM_RETRY and outputs 
+ * information. 
+ * 
+ * @param arg 
+ * @param event_base 
+ * @param event_id 
+ * @param event_data 
+ */
 static void event_handler(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data)
 {
@@ -150,6 +160,11 @@ static void event_handler(void *arg, esp_event_base_t event_base,
     }
 }
 
+/**
+ * @brief Connect to WiFi using EXAMPLE_ESP_WIFI_SSID and EXAMPLE_ESP_WIFI_PASS with error handling.
+ * see https://github.com/espressif/esp-idf/tree/master/examples/wifi for more information.
+ * 
+ */
 void wifi_init_sta(void)
 {
     s_wifi_event_group = xEventGroupCreate();
@@ -217,7 +232,7 @@ void wifi_init_sta(void)
     }
     else
     {
-        ESP_LOGE(TAG, "UNEXPECTED EVENT");
+        ESP_LOGI(TAG, "UNEXPECTED EVENT");
     }
 
     /* The event will not be processed after unregister */
@@ -226,30 +241,20 @@ void wifi_init_sta(void)
     vEventGroupDelete(s_wifi_event_group);
 }
 
-static void print_char_val_type(esp_adc_cal_value_t val_type)
-{
-    if (val_type == ESP_ADC_CAL_VAL_EFUSE_TP)
-    {
-        printf("Characterized using Two Point Value\n");
-    }
-    else if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF)
-    {
-        printf("Characterized using eFuse Vref\n");
-    }
-    else
-    {
-        printf("Characterized using Default Vref\n");
-    }
-}
-
+/**
+ * @brief Reads battery voltage and publishes the value to an MQTT topic.
+ * On the Adafruit Huzzah32 1/2 of the battery voltage can be read on pin 35.
+ * Currently, the topic is the Losant Device State topic, but can be updated to any valid topic
+ * for the connected broker.
+ * 
+ * @param client MQTT client used for publishing to a topic.
+ */
 void read_bat_and_publish(void *client)
 {
     adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(ADC1_GPIO35_CHANNEL, ADC_ATTEN_11db);
 
     adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
-    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_11db, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
-    print_char_val_type(val_type);
 
     //build state topic
     char state_topic[128];
@@ -258,7 +263,10 @@ void read_bat_and_publish(void *client)
     int adc_reading = adc1_get_raw(ADC1_GPIO35_CHANNEL);
     ESP_LOGI(TAG, "Raw: %d", adc_reading);
 
-    // This board has voltage divider, so need to multiply by 2.
+    /* 
+    * This board has voltage divider, so need to multiply by 2.
+    * See this link for more info: https://learn.adafruit.com/adafruit-huzzah32-esp32-feather/power-management#measuring-battery-2385442-8
+    */
     uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars) * 2;
     ESP_LOGI(TAG, "Voltage: %d", voltage);
 
