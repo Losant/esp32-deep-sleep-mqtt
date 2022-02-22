@@ -126,9 +126,9 @@ static esp_mqtt_client_handle_t mqtt_app_start(void)
  * information. 
  * 
  * @param arg 
- * @param event_base 
- * @param event_id 
- * @param event_data 
+ * @param event_base Base of the event (e.g. WIFI_EVENT)
+ * @param event_id ID of the event 
+ * @param event_data Data associated with the event
  */
 static void event_handler(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data)
