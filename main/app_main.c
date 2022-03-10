@@ -24,7 +24,6 @@ static const char *TAG = "esp32-bat-mon";
 #define EXAMPLE_ESP_WIFI_PASS ""
 
 #define EXAMPLE_ESP_MAXIMUM_RETRY 5
-#define DEFAULT_VREF 1100
 
 #define BROKER_URL "broker.losant.com"
 
@@ -252,9 +251,19 @@ void wifi_init_sta(void)
 void read_bat_and_publish(void *client)
 {
     adc1_config_width(ADC_WIDTH_BIT_12);
+    
+    /**
+     * @brief Construct a new adc1 config channel atten object
+     * 
+     * ADC1_GPIO35_CHANNEL is GPIO #35 on the Huzzah32, which 
+     * is the GPIO associated with analog input A13. A13 has the
+     * resistor divider connected to the battery voltage. 
+     * https://learn.adafruit.com/adafruit-huzzah32-esp32-feather/pinouts
+     */
     adc1_config_channel_atten(ADC1_GPIO35_CHANNEL, ADC_ATTEN_11db);
 
     adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
+    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_11db, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
 
     //build state topic
     char state_topic[128];
@@ -302,9 +311,12 @@ void app_main(void)
 
     if (client) {
         read_bat_and_publish(client);   
+        vTaskDelay(pdMS_TO_TICKS(5000)); // wait 5 seconds
 
         // disconnect from MQTT client
         esp_mqtt_client_disconnect(client);
+        vTaskDelay(pdMS_TO_TICKS(5000)); // wait 5 seconds
+
     }
 
 

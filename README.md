@@ -24,3 +24,11 @@ Run `idf.py build` and confirm successful build.
 Upon an successful build, run `idf.py -p (PORT) flash monitor` which will flash the firmware to the designated port, and open the serial monitor.
 
 To find which port your ESP32 is connected to, see the [esp-idf documentation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/establish-serial-connection.html) on establishing a serial connection with the ESP32.
+
+## License
+
+Copyright © 2022 Losant IoT, Inc. All rights reserved.
+
+Licensed under the MIT license.
+
+https://www.losant.com
