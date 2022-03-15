@@ -320,7 +320,7 @@ void app_main(void)
     }
 
 
-    const int wakeup_time_sec = 10; // 900 seconds = 15 minutes
+    const int wakeup_time_sec = 900; // 900 seconds = 15 minutes
     ESP_LOGI(TAG, "Enabling timer wakeup, %ds\n", wakeup_time_sec);
     esp_sleep_enable_timer_wakeup(wakeup_time_sec * 1000000);
     ESP_LOGI(TAG, "Entering deep sleep\n");
