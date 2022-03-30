@@ -1,6 +1,6 @@
 # Battery Monitoring with Losant
 
-For a more in-depth guide on how to use this code is in [this article]().
+For a more in-depth guide on how to use this code is in [this article](https://blog.voltaicsystems.com/how-to-put-an-esp32-into-deep-sleep/).
 
 This project connects an ESP32 (using the [esp-idf](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/)) to an MQTT broker (provided by [Losant](https://www.losant.com)) and collects the voltage of its battery source, publishes that voltage to an MQTT topic, and then sends the ESP32 into a deep sleep cycle for 15 minutes.
 
